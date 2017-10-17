@@ -5,8 +5,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include <xmmintrin.h>
-
 #define TEST_W 4096
 #define TEST_H 4096
 
@@ -14,7 +12,7 @@
  * sse_transpose, sse_prefetch_transpose
  */
 
-#include "impl.c"
+#include "impl.h"
 
 static long diff_in_us(struct timespec t1, struct timespec t2)
 {
@@ -41,18 +39,8 @@ int main()
                              2, 6, 10, 14, 3, 7, 11, 15
                            };
 
-        for (int y = 0; y < 4; y++) {
-            for (int x = 0; x < 4; x++)
-                printf(" %2d", testin[y * 4 + x]);
-            printf("\n");
-        }
-        printf("\n");
-        sse_transpose(testin, testout, 4, 4);
-        for (int y = 0; y < 4; y++) {
-            for (int x = 0; x < 4; x++)
-                printf(" %2d", testout[y * 4 + x]);
-            printf("\n");
-        }
+        transpose(testin, testout, 4, 4);
+
         assert(0 == memcmp(testout, expected, 16 * sizeof(int)) &&
                "Verification fails");
     }
@@ -60,9 +48,8 @@ int main()
     {
         struct timespec start, end;
         int *src  = (int *) malloc(sizeof(int) * TEST_W * TEST_H);
-        int *out0 = (int *) malloc(sizeof(int) * TEST_W * TEST_H);
-        int *out1 = (int *) malloc(sizeof(int) * TEST_W * TEST_H);
-        int *out2 = (int *) malloc(sizeof(int) * TEST_W * TEST_H);
+        int *out = (int *) malloc(sizeof(int) * TEST_W * TEST_H);
+        char* type = TRANSPOSE_TYPE;
 
         srand(time(NULL));
         for (int y = 0; y < TEST_H; y++)
@@ -70,24 +57,12 @@ int main()
                 *(src + y * TEST_W + x) = rand();
 
         clock_gettime(CLOCK_REALTIME, &start);
-        sse_prefetch_transpose(src, out0, TEST_W, TEST_H);
+        transpose(src, out, TEST_W, TEST_H);
         clock_gettime(CLOCK_REALTIME, &end);
-        printf("sse prefetch: \t %ld us\n", diff_in_us(start, end));
-
-        clock_gettime(CLOCK_REALTIME, &start);
-        sse_transpose(src, out1, TEST_W, TEST_H);
-        clock_gettime(CLOCK_REALTIME, &end);
-        printf("sse: \t\t %ld us\n", diff_in_us(start, end));
-
-        clock_gettime(CLOCK_REALTIME, &start);
-        naive_transpose(src, out2, TEST_W, TEST_H);
-        clock_gettime(CLOCK_REALTIME, &end);
-        printf("naive: \t\t %ld us\n", diff_in_us(start, end));
+        printf("%s: \t %ld us\n", type, diff_in_us(start, end));
 
         free(src);
-        free(out0);
-        free(out1);
-        free(out2);
+        free(out);
     }
 
     return 0;
